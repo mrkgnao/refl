@@ -5,7 +5,6 @@ import codes
 
 def main():
     client = Client("Soham's PC")
-    client.setup_from_config()
     client.send("Hi from " + client.ident)
     print(client.recv())
 
@@ -17,6 +16,7 @@ class Client(object):
     def __init__(self, ident):
         self.sock = socket.socket()
         self.ident = ident
+        self.setup_from_config()
 
     """Load settings from config file."""
     def setup_from_config(self):
