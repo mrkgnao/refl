@@ -4,4 +4,3 @@ import handler
 
 def main():
     serv = Server("JRTI")
-    
