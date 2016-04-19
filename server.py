@@ -3,6 +3,7 @@ import threading
 import sys
 import random
 import load_config
+import handler
 
 def main():
     serv = Server("Just Read The Instructions")
@@ -37,24 +38,7 @@ class Server(object):
 
     def accept_and_respond(self):
         conn, addr = self.ssock.accept()
-        print("Connected to {}:{}".format(addr[0], addr[1]))
         threading.Thread(target=self.client_thread, args=(conn, addr)).start()
-
-    def client_thread(self, conn, addr):
-        while True:
-            # Client's mainloop
-            data = conn.recv(1024).decode()
-            if data == "exit":
-                break
-            if data == "":
-                break
-            conn.sendall((data[::-1]).encode())
-            print("Received " + data)
-
-        # Clean everything up
-        conn.close()
-        print("Thread exiting.")
-        sys.exit(0)
 
 if __name__ == '__main__':
     main()
