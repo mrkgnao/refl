@@ -2,13 +2,13 @@ import socket
 import threading
 import load_config
 import codes
+import utils
 import custom_logging
 
 def main():
-    client = Client("Soham's PC")
-    client.send("Hi from " + client.ident)
-    print(client.recv())
-    client.send_sized_msg("asdf123"*2000000)
+    c1, c2 = Client("Soham's PC"), Client("Yet another")
+    c1.send_sized_msg("abcdef"*10000)
+    c2.send_sized_msg("123456"*10000)
 
 class Client(object):
     """
@@ -33,12 +33,16 @@ class Client(object):
     def send(self, msg):
         self.sock.sendall(msg.encode())
 
-    def send_sized_msg(self, msg):
+    def send_sized_msg(self, msg, send_hash=True):
         msg_len = len(msg)
         s_msg_len = len(str(msg_len))
-        self.sock.sendall(str(s_msg_len).encode())
+
+        # The order is:
+        # size_size, size, msg, hash
+        self.sock.sendall(str(s_msg_len).zfill(4).encode())
         self.sock.sendall(str(msg_len).encode())
         self.sock.sendall(msg.encode())
+        self.sock.sendall(utils.get_sha224(msg.encode()).encode())
 
     """Receive a string from the server."""
     def recv(self):

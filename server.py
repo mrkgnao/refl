@@ -3,6 +3,7 @@ import threading
 import sys
 import random
 import load_config
+import utils
 import custom_logging
 from handler import Handler
 
@@ -42,6 +43,7 @@ class Server(object):
 
     def accept_and_respond(self):
         conn, addr = self.ssock.accept()
+        self.logger.debug("Client {} connected".format(utils.addr_to_ident(addr)))
         hdl = Handler(conn, addr)
         hdl.start()
 
