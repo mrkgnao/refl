@@ -7,6 +7,8 @@ def main():
     client = Client("Soham's PC")
     client.send("Hi from " + client.ident)
     print(client.recv())
+    while True:
+        pass
 
 class Client(object):
     """

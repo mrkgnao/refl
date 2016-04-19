@@ -3,7 +3,7 @@ import threading
 import sys
 import random
 import load_config
-import handler
+from handler import Handler
 
 def main():
     serv = Server("Just Read The Instructions")
@@ -38,7 +38,8 @@ class Server(object):
 
     def accept_and_respond(self):
         conn, addr = self.ssock.accept()
-        threading.Thread(target=self.client_thread, args=(conn, addr)).start()
+        hdl = Handler(conn, addr)
+        hdl.start()
 
 if __name__ == '__main__':
     main()
