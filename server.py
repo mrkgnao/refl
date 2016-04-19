@@ -39,6 +39,8 @@ class Server(object):
                 self.accept_and_respond()
             except KeyboardInterrupt:
                 self.logger.critical("Interrupted by user. Exiting.")
+                self.ssock.shutdown(socket.SHUT_RDWR)
+                self.ssock.close()
                 sys.exit(0)
 
     def accept_and_respond(self):

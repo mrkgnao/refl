@@ -3,7 +3,7 @@ import coloredlogs
 
 DATE_FORMAT = '%H:%M:%S'
 
-LOG_FORMAT = '%(asctime)s [%(threadName)s] %(message)s'
+LOG_FORMAT = '%(asctime)s.%(msecs).03d [%(threadName)s] %(message)s'
 # LOG_FORMAT = '%(asctime)s [%(hostname)s/%(threadName)s] %(message)s'
 
 LEVEL_STYLES = {

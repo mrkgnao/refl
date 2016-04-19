@@ -22,10 +22,11 @@ class Handler(Thread):
         self.logger.warning("Starting handler for client {}".format(utils.addr_to_ident(self.addr)))
         self.recv_sized_msg()
         self.conn.shutdown(socket.SHUT_RDWR)
+        self.conn.close()
 
     """Receive a string of a specified length."""
-    def recv_string(self, str_len):
-        self.logger.info("Handler {} awaiting data of length {}".format(self.thread_name(), str_len))
+    def recv_string(self, str_len, cust_label="data"):
+        self.logger.info("Handler {} awaiting {} of length {}".format(self.thread_name(), cust_label, str_len))
         t = time()
         left, done, msg = str_len, 0, bytearray()
         while left > 0:
@@ -37,10 +38,10 @@ class Handler(Thread):
         t = time() - t
         transfer_speed = (str_len / t) / 1024 # KB/s
         if str_len < 50:
-            self.logger.info("Handler {} received data {} of length {}".format(self.thread_name(), msg.decode(), str_len))
+            self.logger.info("Handler {} received {} {} of length {}".format(self.thread_name(), cust_label, msg.decode(), str_len))
         else:
-            self.logger.info("Handler {} received data of length {} ({:.2f} KB/s)".format(
-                self.thread_name(), str_len, transfer_speed))
+            self.logger.info("Handler {} received {} of length {} ({:.2f} KB/s)".format(
+                self.thread_name(), cust_label, str_len, transfer_speed))
 
         return bytes(msg)
 
@@ -56,7 +57,7 @@ class Handler(Thread):
         self.logger.debug("msg_size: {}".format(msg_size))
 
         msg = self.recv_string(msg_size)
-        actual_hash = self.recv_string(56).decode()
+        actual_hash = self.recv_string(56, cust_label="hash").decode()
         computed_hash = utils.get_sha224(msg)
 
         if actual_hash == computed_hash:

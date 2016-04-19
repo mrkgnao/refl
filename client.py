@@ -6,9 +6,12 @@ import utils
 import custom_logging
 
 def main():
-    c1, c2 = Client("Soham's PC"), Client("Yet another")
-    c1.send_sized_msg("abcdef"*10000)
-    c2.send_sized_msg("123456"*10000)
+    lst = []
+    for i in range(10):
+        lst.append(Client(str(i)))
+
+    for c in lst:
+        c.send_sized_msg(("asdf" + c.ident)*100000)
 
 class Client(object):
     """
