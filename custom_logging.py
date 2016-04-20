@@ -32,7 +32,7 @@ coloredlogs.install(
     field_styles=FIELD_STYLES)
 
 def get_colored_logger(ident=None):
-    if ident is None:
+    if True: # ident is None:
         fmt = LOG_FORMAT
     else:
         fmt = "{} {} {}".format(LOG_FORMAT_PRE, ident, LOG_FORMAT_POST)
