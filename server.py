@@ -7,10 +7,6 @@ import utils
 import custom_logging
 from handler import Handler
 
-def main():
-    serv = Server("Server")
-    serv.start()
-
 class Server(object):
     """
     A Server object models an instance of a central server that accepts files
@@ -25,7 +21,8 @@ class Server(object):
 
     def start(self, listen_queue_len=10):
         self.begin_listen(listen_queue_len)
-        self.mainloop()
+        main_thread = threading.Thread(name="Thread-S",target=self.mainloop,args=())
+        main_thread.start()
 
     def begin_listen(self, listen_queue_len):
         port = load_config.get_server_port()
@@ -46,8 +43,5 @@ class Server(object):
     def accept_and_respond(self):
         conn, addr = self.ssock.accept()
         self.logger.debug("Client {} connected".format(utils.addr_to_ident(addr)))
-        hdl = Handler(conn, addr)
+        hdl = Handler(conn, addr, ident="handler")
         hdl.start()
-
-if __name__ == '__main__':
-    main()

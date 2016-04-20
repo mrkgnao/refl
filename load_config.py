@@ -11,3 +11,6 @@ def get_server_host():
 
 def get_chunk_size():
     return int(conf['general']['chunksize'])
+
+def get_hash_len():
+    return int(conf['general']['hashlen'])

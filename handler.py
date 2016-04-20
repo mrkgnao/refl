@@ -8,11 +8,11 @@ from threading import Thread
 
 class Handler(Thread):
     """A Handler is an object that communicates with a client."""
-    def __init__(self, conn, addr):
+    def __init__(self, conn, addr, ident=""):
         super().__init__()
         self.conn = conn
         self.addr = addr
-        self.logger = custom_logging.get_colored_logger(utils.addr_to_ident(addr))
+        self.logger = custom_logging.get_colored_logger(ident=ident)
         self.CHUNK_SIZE = load_config.get_chunk_size()
 
     def thread_name(self):
@@ -36,12 +36,13 @@ class Handler(Thread):
             done = min(str_len, done + self.CHUNK_SIZE)
 
         t = time() - t
-        transfer_speed = (str_len / t) / 1024 # KB/s
+        transfer_speed = utils.humanized_size(str_len / t)
+        str_len_humanized = utils.humanized_size(str_len)
         if str_len < 50:
-            self.logger.info("Handler {} received {} {} of length {}".format(self.thread_name(), cust_label, msg.decode(), str_len))
+            self.logger.info("Handler {} received {} {} of length {}".format(self.thread_name(), cust_label, msg.decode(), str_len_humanized))
         else:
-            self.logger.info("Handler {} received {} of length {} ({:.2f} KB/s)".format(
-                self.thread_name(), cust_label, str_len, transfer_speed))
+            self.logger.info("Handler {} received {} of length {} ({}/s)".format(
+                self.thread_name(), cust_label, str_len_humanized, transfer_speed))
 
         return bytes(msg)
 
@@ -57,8 +58,8 @@ class Handler(Thread):
         self.logger.debug("msg_size: {}".format(msg_size))
 
         msg = self.recv_string(msg_size)
-        actual_hash = self.recv_string(56, cust_label="hash").decode()
-        computed_hash = utils.get_sha224(msg)
+        actual_hash = self.recv_string(load_config.get_hash_len(), cust_label="hash").decode()
+        computed_hash = utils.get_hash(msg)
 
         if actual_hash == computed_hash:
             self.logger.debug("Actual and computed hashes match (both {})".format(actual_hash))
