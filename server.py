@@ -2,27 +2,28 @@ import socket
 import threading
 import sys
 import random
-import load_config
+from threading import Thread
+
 import utils
 import custom_logging
 from handler import Handler
 
-class Server(object):
+def main():
+    serv = Server("JRTI")
+    serv.start()
+
+class Server(Thread):
     """
     A Server object models an instance of a central server that accepts files
     from authenticated clients and backs them up immutably.
 
     Not using `socketserver` for . . . reasons.
     """
-    def __init__(self, ident):
+    def __init__(self, name):
         self.ssock = socket.socket()
-        self.ident = ident
-        self.logger = custom_logging.get_colored_logger(self.ident)
-
-    def start(self, listen_queue_len=10):
+        self.name = name
+        self.logger = custom_logging.get_colored_logger(self.name)
         self.begin_listen(listen_queue_len)
-        main_thread = threading.Thread(name="Thread-S",target=self.mainloop,args=())
-        main_thread.start()
 
     def begin_listen(self, listen_queue_len):
         port = load_config.get_server_port()
@@ -30,18 +31,18 @@ class Server(object):
         self.ssock.listen(listen_queue_len)
         self.logger.info("Server listening on port {}".format(port))
 
-    def mainloop(self):
+    def run(self):
         while True:
             try:
-                self.accept_and_respond()
+                conn, addr = self.ssock.accept()
+                self.logger.debug("Client {} connected".format(utils.addr_to_ident(addr)))
+                hdl = Handler(conn, addr)
+                hdl.start()
             except KeyboardInterrupt:
                 self.logger.critical("Interrupted by user. Exiting.")
                 self.ssock.shutdown(socket.SHUT_RDWR)
                 self.ssock.close()
                 sys.exit(0)
 
-    def accept_and_respond(self):
-        conn, addr = self.ssock.accept()
-        self.logger.debug("Client {} connected".format(utils.addr_to_ident(addr)))
-        hdl = Handler(conn, addr, ident="handler")
-        hdl.start()
+if __name__ == '__main__':
+    main()

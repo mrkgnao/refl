@@ -2,7 +2,6 @@ import socket
 import threading
 import custom_logging
 import utils
-import load_config
 from time import time
 from threading import Thread
 

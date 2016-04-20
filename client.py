@@ -1,28 +1,43 @@
 import socket
 import threading
-import load_config
-import codes
-import utils
-import custom_logging
 import sys
 from time import time
+
+import utils
+import custom_logging
+import config.settings as settings
+
+def main():
+    if len(sys.argv) < 1:
+        NUM_MB_TO_SEND = 200
+    else:
+        NUM_MB_TO_SEND = int(sys.argv[1])
+        custom_logging.logger.debug(NUM_MB_TO_SEND)
+    lst = []
+    t = time()
+    for i in range(10):
+        c = Client(str(i))
+        c.send_sized_msg(("0123456789")*100000 * NUM_MB_TO_SEND) #1e6 bytes
+
+    t = time() - t
+    custom_logging.logger.info("Send took {} s".format(t))
 
 class Client(object):
     """
     The Client class models a single client system that submits files for backup
     to the central server.
     """
-    def __init__(self, ident="Le random client"):
+    def __init__(self, ident):
         self.sock = socket.socket()
         self.ident = ident
         self.setup_from_config()
         self.CHUNK_SIZE = 1024
-        self.logger = custom_logging.get_colored_logger(ident=ident)
+        self.logger = custom_logging.get_colored_logger()
 
     """Load settings from config file."""
     def setup_from_config(self):
-        host = load_config.get_server_host()
-        port = load_config.get_server_port()
+        host = settings.SERVER_HOST
+        port = settings.SERVER_PORT
         self.serv = (host, port)
         self.sock.connect(self.serv)
 
@@ -30,7 +45,7 @@ class Client(object):
     def send(self, msg):
         self.sock.sendall(msg.encode())
 
-    def send_sized_msg(self, msg, send_hash=True):
+    def send_sized_msg(self, msg, send_hash=True, retry=5):
         msg = msg.encode()
         msg_len = len(msg)
         s_msg_len = len(str(msg_len))
@@ -63,3 +78,6 @@ class Client(object):
             self.logger.info("sent {} of total {}".format(bytes_sent, file_len))
             l = f.read(CHUNK_SIZE)
         self.logger.info("Done sending.")
+
+if __name__ == '__main__':
+    main()

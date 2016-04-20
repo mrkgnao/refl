@@ -32,10 +32,15 @@ coloredlogs.install(
     field_styles=FIELD_STYLES)
 
 def get_colored_logger(ident=None):
+    if ident is None:
+        fmt = LOG_FORMAT
+    else:
+        fmt = "{} {} {}".format(LOG_FORMAT_PRE, ident, LOG_FORMAT_POST)
+
     logger = logging.getLogger("refl")
     coloredlogs.install(
         level='DEBUG',
-        fmt="{} {} {}".format(LOG_FORMAT_PRE, ident, LOG_FORMAT_POST),
+        fmt=fmt,
         datefmt=DATE_FORMAT,
         level_styles=LEVEL_STYLES,
         field_styles=FIELD_STYLES)
