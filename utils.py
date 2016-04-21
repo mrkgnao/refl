@@ -1,4 +1,5 @@
 import hashlib
+from binascii import hexlify
 
 def addr_to_ident(conn):
     return "{}:{}".format(conn[0], conn[1])
@@ -24,3 +25,7 @@ def chunks_of(s, n):
 """Consume two bytes from a bytearray."""
 def consume(ba):
     return (ba[:2], ba[2:])
+
+"""Pretty-print a bytearray/byteseq."""
+def pretty_print(bs):
+    return hexlify(bs)
