@@ -1,6 +1,7 @@
 from enum import Enum
 import struct
 from struct import pack, unpack
+from os.path import getsize, basename
 from random import random
 
 import utils
@@ -13,9 +14,9 @@ from logged_exception import LoggedException
 class Constant(Enum):
     BEG_TX = 0x0000
     END_TX = 0x1111
-    BEG_CSIZE = 0x2222
+    BEG_SIZE = 0x2222
+    END_SIZE = 0x3333
     BEG_COUNT = 0x2020
-    END_CSIZE = 0x3333
     END_COUNT = 0x3030
     BEG_DATA = 0x4444
     END_DATA = 0x5555
@@ -29,6 +30,8 @@ class Constant(Enum):
 
     BEG_CHUNK = 0xDDDD
     END_CHUNK = 0xEEEE
+    BEG_FNAME = 0xAAAA
+    END_FNAME = 0xFFFF
 
     INFO_HASH_MISMATCH = 0xDEAD
     INFO_RECV_OK = 0x600D
@@ -120,7 +123,7 @@ def send_info(s, conn):
 Prepare a byteseq for transmission.
 The "grammar" is
 BEG_CHUNK
-BEG_CSIZE <size> END_CSIZE
+BEG_SIZE <size> END_SIZE
 BEG_DATA <data> END_DATA
 BEG_HASH <hash> END_HASH
 END_CHUNK
@@ -140,9 +143,9 @@ def bytes_to_hashed_chunk(s):
     b += constant_to_bytes(Constant.BEG_CHUNK)
 
     # "Size block"
-    b += constant_to_bytes(Constant.BEG_CSIZE)
+    b += constant_to_bytes(Constant.BEG_SIZE)
     b += uint_to_bytes(len(s))
-    b += constant_to_bytes(Constant.END_CSIZE)
+    b += constant_to_bytes(Constant.END_SIZE)
 
     # "Data block"
     b += constant_to_bytes(Constant.BEG_DATA)
@@ -203,6 +206,53 @@ def send_string(s, conn, num_retries=settings.MAX_RETRIES):
     for ix, ch in enumerate([k.encode() for k in lst]):
         send_chunk(bytes_to_hashed_chunk(ch),
                    conn, num_retries=num_retries, ab=(ix+1, len(lst)))
+
+    send_constant(Constant.END_TX, conn)
+
+"""
+The grammar is:
+BEG_TX
+MSG_TYPE_FILE
+BEG_SIZE <length of file name> END_SIZE
+BEG_FNAME <file name> END_FNAME
+BEG_COUNT <number of chunks> END_COUNT
+<chunks>
+END_TX
+"""
+
+
+def send_file(filepath, conn, num_retries=settings.MAX_RETRIES):
+    flen = getsize(filepath)
+    num_chunks = flen // settings.FILE_CHUNK_SIZE
+    num_done = 0
+    fname = basename(filepath)
+
+    # Mark the beginning of the transaction
+    send_constant(Constant.BEG_TX, conn)
+    send_constant(Constant.MSG_TYPE_FILE, conn)
+
+    send_constant(Constant.BEG_SIZE, conn)
+    conn.send(uint_to_bytes(len(fname.encode())))
+    send_constant(Constant.END_SIZE, conn)
+
+    send_constant(Constant.BEG_FNAME, conn)
+    conn.send(fname.encode())
+    send_constant(Constant.END_FNAME, conn)
+
+    send_constant(Constant.BEG_COUNT, conn)
+    conn.send(uint_to_bytes(num_chunks))
+    send_constant(Constant.END_COUNT, conn)
+
+    with open(filepath, 'rb') as f:
+        while True:
+            b = f.read(settings.FILE_CHUNK_SIZE)
+            if b:
+                send_chunk(bytes_to_hashed_chunk(b),
+                           conn, num_retries=num_retries,
+                           ab=(num_done, num_chunks))
+                num_done += 1
+            else:
+                break
 
     send_constant(Constant.END_TX, conn)
 
@@ -341,9 +391,9 @@ def recv_chunk(conn, num_retries):
             # the stream as is required.
             consume_till_next(Constant.BEG_CHUNK, conn)
 
-            match_next(Constant.BEG_CSIZE, conn)
+            match_next(Constant.BEG_SIZE, conn)
             size = recv_uint(conn)
-            match_next(Constant.END_CSIZE, conn)
+            match_next(Constant.END_SIZE, conn)
 
             match_next(Constant.BEG_DATA, conn)
             data = conn.recv(size)
@@ -356,8 +406,7 @@ def recv_chunk(conn, num_retries):
             match_next(Constant.END_CHUNK, conn)
             calc_hash = utils.get_hash(data)
 
-            if (calc_hash == actual_hash and
-                    random() < settings.FAKE_ERROR_THRESHOLD):
+            if (calc_hash == actual_hash):
 
                 logger.debug("Chunk received, hashes match (both {})"
                              .format(pretty_print(calc_hash)))
@@ -387,6 +436,42 @@ def recv_string(conn, num_retries=settings.MAX_RETRIES):
 
         for i in range(num_chunks):
             ba += recv_chunk(conn, num_retries=num_retries)
+
+        match_next(Constant.END_TX, conn)
+        # logger.debug("Received string {}".format(pretty_print(ba)))
+        return bytes(ba)
+    except LoggedException as le:
+        le.log()
+
+"""
+Receive a file.
+"""
+
+
+def recv_file(conn, num_retries=settings.MAX_RETRIES):
+    try:
+        consume_till_next(Constant.BEG_TX, conn)
+        match_next(Constant.MSG_TYPE_FILE, conn)
+
+        match_next(Constant.BEG_SIZE, conn)
+        fname_size = recv_uint(conn)
+        logger.debug("File name is {} bytes long".format(fname_size))
+        match_next(Constant.END_SIZE, conn)
+
+        match_next(Constant.BEG_FNAME, conn)
+        fname = conn.recv(fname_size).decode()
+        logger.debug("Awaiting file " + fname)
+        match_next(Constant.END_FNAME, conn)
+
+        match_next(Constant.BEG_COUNT, conn)
+        num_chunks = recv_uint(conn)
+        num_left = num_chunks
+        match_next(Constant.END_COUNT, conn)
+
+        with open('./tmp/recv/{}'.format(fname), 'wb') as f:
+            while num_left >= 0:
+                f.write(recv_chunk(conn, num_retries=num_retries))
+                num_left -= 1
 
         match_next(Constant.END_TX, conn)
         # logger.debug("Received string {}".format(pretty_print(ba)))
